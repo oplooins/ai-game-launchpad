@@ -1,0 +1,165 @@
+// Supabase/PostgreSQL-compatible schema for later deployment.
+// To use it: copy this file over prisma/schema.prisma, set DATABASE_URL to Supabase pooled/direct PostgreSQL URL, then run prisma db push.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  PLAYER
+  DEVELOPER
+  ADMIN
+}
+
+enum GameStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model User {
+  id        String     @id @default(cuid())
+  clerkId   String?    @unique
+  email     String     @unique
+  username  String?
+  avatarUrl String?
+  role      Role       @default(PLAYER)
+  plan      String     @default("FREE")
+  games     Game[]
+  reviews   Review[]
+  favorites Favorite[]
+  generationUsage GenerationUsage[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model Game {
+  id               String     @id @default(cuid())
+  title            String
+  slug             String     @unique
+  description      String
+  shortDescription String?
+  coverImage       String?
+  screenshots      Json?
+  playUrl          String
+  gameTemplate     String?
+  gameConfig       Json?
+  category         String?
+  tags             Json?
+  seoTitle         String?
+  promoLine        String?
+  imagePrompt      String?
+  aiQualityScore  Int?
+  aiQualitySummary String?
+  aiSeoChecklist  Json?
+  aiImprovementTips Json?
+  aiPublishPack   Json?
+  status           GameStatus @default(PENDING)
+  rejectedReason   String?
+  reviewedAt       DateTime?
+  views            Int        @default(0)
+  plays            Int        @default(0)
+  developerId      String
+  developer        User       @relation(fields: [developerId], references: [id])
+  reviews          Review[]
+  favorites        Favorite[]
+  versions         GameVersion[]
+  scores           Score[]
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  rating    Int
+  comment   String?
+  userId    String
+  gameId    String
+  user      User     @relation(fields: [userId], references: [id])
+  game      Game     @relation(fields: [gameId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Favorite {
+  id        String   @id @default(cuid())
+  userId    String
+  gameId    String
+  user      User     @relation(fields: [userId], references: [id])
+  game      Game     @relation(fields: [gameId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([userId, gameId])
+}
+
+
+model GameVersion {
+  id            String   @id @default(cuid())
+  gameId        String
+  versionNumber Int
+  changePrompt  String?
+  configSnapshot Json
+  titleSnapshot String?
+  game          Game     @relation(fields: [gameId], references: [id])
+  createdAt     DateTime @default(now())
+
+  @@unique([gameId, versionNumber])
+}
+
+model Score {
+  id        String   @id @default(cuid())
+  gameId    String
+  userId    String?
+  playerName String?
+  score     Int
+  duration  Int?
+  game      Game     @relation(fields: [gameId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+
+model GenerationUsage {
+  id        String   @id @default(cuid())
+  userId    String?
+  anonId    String?
+  type      String
+  date      String
+  count     Int      @default(0)
+  user      User?    @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, anonId, type, date])
+}
+
+
+model Workflow {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  template    String
+  nodes       Json
+  edges       Json?
+  ownerId     String?
+  isPublic    Boolean  @default(false)
+  runs        WorkflowRun[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model WorkflowRun {
+  id          String   @id @default(cuid())
+  workflowId  String?
+  workflow    Workflow? @relation(fields: [workflowId], references: [id])
+  prompt      String
+  status      String
+  logs        Json?
+  output      Json?
+  gameId      String?
+  createdAt   DateTime @default(now())
+}
